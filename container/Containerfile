@@ -1,0 +1,31 @@
+# Podman is the first-class container runtime for OpenParts Server
+# (Architecture Specification section 21). The image is OCI-compliant,
+# so any OCI runtime works too.
+#
+# openparts-server depends on crates from the sibling `openparts`
+# repository via path dependencies (Cargo.toml), so the build context
+# must contain BOTH repositories as siblings. Build from the parent
+# directory of both repos:
+#
+#   podman build -f openparts-server/container/Containerfile \
+#     -t openparts-server:local .
+#
+# NOTE: this Containerfile has not been exercised in this environment
+# (no container runtime available here) -- it is written to the same
+# layout the CI workflows and `cargo build` commands already verified
+# work, but treat a first real build as unverified until run once.
+
+FROM docker.io/library/rust:1-slim-bookworm AS build
+WORKDIR /src
+COPY openparts ./openparts
+COPY openparts-server ./openparts-server
+WORKDIR /src/openparts-server
+RUN cargo build --release --locked
+
+FROM docker.io/library/debian:bookworm-slim
+RUN useradd --system --create-home --home-dir /home/openparts openparts
+COPY --from=build /src/openparts-server/target/release/openparts-server /usr/local/bin/openparts-server
+USER openparts
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/openparts-server"]

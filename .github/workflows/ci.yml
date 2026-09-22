@@ -1,0 +1,51 @@
+# Code PR CI (Testing and Quality Specification section 12): formatting,
+# static checks, and the integration test suite against the real
+# openparts-data fixtures.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out openparts-server
+        uses: actions/checkout@v4
+        with:
+          path: openparts-server
+
+      - name: Check out openparts (path dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/openparts
+          path: openparts
+
+      - name: Check out openparts-data (test fixtures)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/openparts-data
+          path: openparts-data
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: openparts-server
+
+      - name: cargo fmt --check
+        working-directory: openparts-server
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        working-directory: openparts-server
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: cargo test
+        working-directory: openparts-server
+        run: cargo test

@@ -1,0 +1,30 @@
+# Podman Quadlet unit (Architecture Specification section 21):
+# systemd manages Podman via this unit. Install by copying this file to
+# ~/.config/containers/systemd/ (rootless) or
+# /etc/containers/systemd/ (root), then:
+#
+#   systemctl --user daemon-reload
+#   systemctl --user start openparts-server
+#
+# NOTE: not exercised in this environment (no systemd/Podman available
+# here) -- written for the deployment shape the Architecture
+# Specification describes, but treat a first real deployment as
+# unverified until run once.
+
+[Unit]
+Description=OpenParts distribution API server
+After=network-online.target
+
+[Container]
+Image=openparts-server:local
+ContainerName=openparts-server
+PublishPort=8080:8080
+Environment=OPENPARTS_DATA_DIR=/data/openparts-data
+Environment=PORT=8080
+Volume=%h/openparts-data:/data/openparts-data:ro,Z
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
