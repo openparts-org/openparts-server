@@ -102,6 +102,25 @@ async fn kicad_symbol_artifact_matches_device_pin_count() {
 }
 
 #[tokio::test]
+async fn stl_artifact_has_one_solid_per_part() {
+    let response = app()
+        .oneshot(
+            Request::builder()
+                .uri("/v1/parts/raspberrypi/RP2040/artifacts/stl")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.headers().contains_key("x-content-hash"));
+    let body = body_string(response).await;
+    assert!(body.starts_with("solid RP2040\n"));
+    // 1 body + 56 leads = 57 boxes, 12 facets each.
+    assert_eq!(body.matches("facet normal").count(), 57 * 12);
+}
+
+#[tokio::test]
 async fn revision_query_param_changes_effective_model() {
     // RP2040's real B0/B1/B2 revisions have no documented pin
     // differences (unlike the old fictional exemplar fixture) -- this
@@ -134,11 +153,17 @@ async fn unknown_revision_is_rejected_with_422() {
 }
 
 #[tokio::test]
-async fn missing_package_dimensions_blocks_generation_instead_of_guessing() {
-    // ESP32-C6's package pitch is not confirmed in the source datasheet
-    // (see openparts-data), so geometry generation must fail loudly
-    // rather than fabricate a value -- Testing and Quality
-    // Specification section 7.
+async fn esp32_c6_footprint_now_generates_after_jedec_dimensions_were_added() {
+    // ESP32-C6's package pitch/height weren't confirmable from its own
+    // datasheet text (only an embedded mechanical drawing image); this
+    // used to make footprint generation correctly fail with 422
+    // (missing dimension) rather than guess. openparts-data later added
+    // JEDEC MO-220 standard pitch/height for this exact lead-count/
+    // body-size combination (see that repo's history), so generation
+    // now succeeds -- this is a regression test for that fix, not a
+    // live example of "missing dimension blocks generation" anymore.
+    // That principle itself stays covered by openparts-mcad's own
+    // McadError::MissingDimension unit tests.
     let response = app()
         .oneshot(
             Request::builder()
@@ -148,7 +173,9 @@ async fn missing_package_dimensions_blocks_generation_instead_of_guessing() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = body_string(response).await;
+    assert_eq!(body.matches("(pad \"").count(), 40);
 }
 
 #[tokio::test]

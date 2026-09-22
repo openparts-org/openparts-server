@@ -416,6 +416,7 @@ dependencies = [
  "openparts-mcad",
  "openparts-pcbcad",
  "openparts-step",
+ "openparts-stl",
  "openparts-validator",
  "serde",
  "serde_json",
@@ -430,6 +431,14 @@ dependencies = [
 
 [[package]]
 name = "openparts-step"
+version = "0.1.0"
+dependencies = [
+ "openparts-mcad",
+ "thiserror",
+]
+
+[[package]]
+name = "openparts-stl"
 version = "0.1.0"
 dependencies = [
  "openparts-mcad",

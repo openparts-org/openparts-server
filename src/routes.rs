@@ -42,6 +42,10 @@ pub fn build_router(store: Arc<Store>) -> Router {
             "/v1/parts/:manufacturer/:mpn/artifacts/step",
             get(artifact_step),
         )
+        .route(
+            "/v1/parts/:manufacturer/:mpn/artifacts/stl",
+            get(artifact_stl),
+        )
         .route("/v1/devices/*id", get(get_device))
         .route("/v1/packages/*id", get(get_package))
         .with_state(store)
@@ -189,6 +193,7 @@ struct ArtifactsResponse {
     #[serde(rename = "kicad-footprint")]
     kicad_footprint: String,
     step: String,
+    stl: String,
 }
 
 /// `GET /v1/parts/{manufacturer}/{mpn}/artifacts`
@@ -202,6 +207,7 @@ async fn list_artifacts(
         kicad_symbol: format!("{base}/kicad-symbol"),
         kicad_footprint: format!("{base}/kicad-footprint"),
         step: format!("{base}/step"),
+        stl: format!("{base}/stl"),
     }))
 }
 
@@ -297,4 +303,18 @@ async fn artifact_step(
     let text = openparts_step::generate_step(&geometry, &model.part.mpn)
         .map_err(|e| ApiError::GenerationFailed(e.to_string()))?;
     Ok(artifact_response(text, "model/step"))
+}
+
+/// `GET /v1/parts/{manufacturer}/{mpn}/artifacts/stl?silicon_revision=...`
+async fn artifact_stl(
+    State(store): State<Arc<Store>>,
+    Path((manufacturer, mpn)): Path<(String, String)>,
+    Query(q): Query<RevisionQuery>,
+) -> Result<Response, ApiError> {
+    let model = build_model(&store, &manufacturer, &mpn, q.silicon_revision.as_deref())?;
+    let geometry = openparts_mcad::generate(&model.package)
+        .map_err(|e| ApiError::GenerationFailed(e.to_string()))?;
+    let text = openparts_stl::generate_stl(&geometry, &model.part.mpn)
+        .map_err(|e| ApiError::GenerationFailed(e.to_string()))?;
+    Ok(artifact_response(text, "model/stl"))
 }

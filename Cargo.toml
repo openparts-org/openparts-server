@@ -11,6 +11,7 @@ openparts-data = { path = "../openparts/crates/openparts-data" }
 openparts-validator = { path = "../openparts/crates/openparts-validator" }
 openparts-mcad = { path = "../openparts/crates/mcad/openparts-mcad" }
 openparts-step = { path = "../openparts/crates/mcad/openparts-step" }
+openparts-stl = { path = "../openparts/crates/mcad/openparts-stl" }
 openparts-pcbcad = { path = "../openparts/crates/pcbcad/openparts-pcbcad" }
 openparts-kicad = { path = "../openparts/crates/pcbcad/openparts-kicad" }
 
