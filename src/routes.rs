@@ -58,6 +58,7 @@ async fn health() -> &'static str {
 #[derive(Deserialize)]
 struct SearchQuery {
     q: Option<String>,
+    category: Option<openparts_core::ComponentCategory>,
 }
 
 #[derive(Serialize)]
@@ -66,9 +67,16 @@ struct PartSummary {
     mpn: String,
     existence: openparts_core::ExistenceStatus,
     lifecycle: openparts_core::LifecycleStatus,
+    // The Part itself doesn't carry category (Canonical Data
+    // Specification section 35: don't duplicate an engineering fact
+    // that already lives on the referenced Device) -- resolved here so
+    // clients can filter/browse without a second fetch per part. None
+    // only if the Part's device reference doesn't resolve, which
+    // openparts-validator should already prevent for valid data.
+    category: Option<openparts_core::ComponentCategory>,
 }
 
-/// `GET /v1/search?q=...`
+/// `GET /v1/search?q=...&category=...`
 async fn search(
     State(store): State<Arc<Store>>,
     Query(params): Query<SearchQuery>,
@@ -87,6 +95,11 @@ async fn search(
             mpn: p.mpn.clone(),
             existence: p.existence.status,
             lifecycle: p.lifecycle.status,
+            category: store.devices.get(&p.device.0).map(|d| d.category),
+        })
+        .filter(|p| match params.category {
+            None => true,
+            Some(wanted) => p.category == Some(wanted),
         })
         .collect();
     results.sort_by(|a, b| (&a.manufacturer, &a.mpn).cmp(&(&b.manufacturer, &b.mpn)));
